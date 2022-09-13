@@ -129,7 +129,6 @@ def checkMovement(ticker: str):
         notifed.append(ticker)
         return 0
 
-
 def refresh():
     global textvars, stocks, marketClosed
     if marketClosed == True:
@@ -156,5 +155,3 @@ for stock in decMem.split():
 wn.after(10000, refresh)
 
 wn.mainloop()
-
-# todo: saving added stocks, graphs, desktop notifs, notif settings, pretty it up, then maybe app for analyzing discord usage (mesgs per day and who, etc)

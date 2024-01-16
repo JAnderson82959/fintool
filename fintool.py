@@ -1,157 +1,177 @@
-import sys
 import os
-from tempfile import TemporaryDirectory, tempdir
 import tkinter as tk
 import requests
 import datetime
-import time
 from bs4 import BeautifulSoup
 
-def updateTillClose():
-    global tillClose, marketClosed
-    now = datetime.datetime.utcnow()
-    tty = 19 - now.hour
-    if now.hour >= 19 or now.hour <= 12 or (now.hour <= 12 and now.minute < 30):
-        tillClose = "market closed"
-        marketClosed = True
-    elif tty == 1:
-        tillClose = f"market closes in 1 hour"
-        marketClosed = False
-    else:
-        tillClose = f"market closes in {tty} hours"
-        marketClosed = False
 
-__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-TSLA = "TSLA"
-wn = tk.Tk()
-stocknum = 0
-notifnum = 0
-labels = []
-stocks = []
-notifed = []
-notifs = []
-textvars = []
-updateTillClose() 
-wn.title(f"stock thing ({tillClose})")
-wn.geometry("900x600")
-sesh = requests.Session()
+class Program:
+    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    stockCount = 0
+    notifCount = 0
+    labels = []
+    stocks = []
+    notifedStocks = []
+    notifs = []
+    textVars = []
+    session = requests.Session()
+    tillClose, marketClosed, window, input, entry = None
 
-def notify(stk: str, dir: bool):
-    global notifs, notifnum
-    notif = tk.Label(wn, text = " ", font = "Helvetica 15")
-    notif.grid(column = 1, row = notifnum)
-    os.system("afplay /System/Library/Sounds/Submarine.aiff")
-    if dir == True:
-        notif.config(text=f"{stk} has moved upward by 5% since market open! [{datetime.datetime.now()}]")
-    else:
-        notif.config(text=f"{stk} has moved downward by 5% since market open! [{datetime.datetime.now()}]")
-    notifs.append(notif)
-    notifnum += 1
+    def updateTillClose(self):
+        now = datetime.datetime.utcnow()
+        tty = 19 - now.hour
 
-def clearNotifs():
-    global notifs, notifnum
-    for notif in notifs:
-        notif.destroy()
-    notifnum = 0
+        if now.hour >= 19 or now.hour <= 12 or (now.hour <= 12 and now.minute < 30):
+            self.tillClose = "market closed"
+            self.marketClosed = True
 
-def getPrice(ticker: str) -> str:
-    url = f"https://finance.yahoo.com/quote/{ticker}/"
-    page = sesh.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
-    proc = BeautifulSoup(page.text, "html.parser")
-    class_ = "My(6px) Pos(r) smartphone_Mt(6px) W(100%)"
-    return proc.find("div", class_ = class_).find("fin-streamer").text
+        elif tty == 1:
+            self.tillClose = f"market closes in 1 hour"
+            self.marketClosed = False
 
-def getChange(ticker: str) -> str:
-    url = f"https://finance.yahoo.com/quote/{ticker}/"
-    page = sesh.get(url, headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
-    proc = BeautifulSoup(page.text, "html.parser")
-    class_ = "My(6px) Pos(r) smartphone_Mt(6px) W(100%)"
-    return proc.find("div", class_ = class_).find("span").text
+        else:
+            self.tillClose = f"market closes in {tty} hours"
+            self.marketClosed = False
+            
 
-def submitaddstk():
-    global E1
-    global inpu
-    stk = E1.get()
-    inpu.grab_release()
-    inpu.destroy()
-    addstk(stk)
+    def notify(self, ticker: str, dir: bool):
+        notif = tk.Label(self.window, text = " ", font = "Helvetica 15")
+        notif.grid(column = 1, row = self.notifCount)
+        os.system("afplay /System/Library/Sounds/Submarine.aiff")
 
-def addstk(stk: str):
-    if requests.get(f"https://finance.yahoo.com/quote/{stk}/").status_code == 404:
-        global errorWin
-        errorWin = tk.Toplevel(master= wn)
-        errorWin.title("Do better.")
-        tk.Label(errorWin, text = "Invalid Ticker, buddy.", font="Helvetica 15").pack()
-        tk.Button(errorWin, text = "Okay. I'm really sorry.", command = lambda : errorWin.destroy()).pack()
-        return 0
-    global stocknum, stocks, textvars
-    addstkbutton.grid(column = 0, row = 1 + stocknum)
-    newtext = tk.StringVar()
-    newtext.set(f"{stk} = {getPrice(stk)} ({getChange(stk)})")
-    textvars.append(newtext)
-    newlabel = tk.Label(textvariable= textvars[stocknum], font='Helvetica 15').grid(column = 0, row = stocknum)
-    labels.append(newlabel)
-    stocks.append(stk)
-    stocknum += 1
-    mem = open("memory.txt", 'w')
-    tomp = ""
-    for stock in stocks:
-        tomp += f"{stock} "
-    blah = str.encode(tomp)
-    mem.write(tomp)
+        if dir == True:
+            notif.config(text=f"{ticker} has moved upward by 5% since market open! [{datetime.datetime.now()}]")
 
-def addstkclick():
-    global inpu
-    stk = "temp"
-    inpu = tk.Toplevel(master= wn)
-    inpu.grab_current()
-    inpu.focus_force()
-    global E1
-    E1 = tk.Entry(inpu, bd = 10)
-    E1.pack()
-    submit = tk.Button(inpu, text = "Submit", command = submitaddstk).pack()
+        else:
+            notif.config(text=f"{ticker} has moved downward by 5% since market open! [{datetime.datetime.now()}]")
 
-def checkMovement(ticker: str):
-    global notifed
-    if marketClosed == True:
-        notifed = []
-        return 0
-    for note in notifed:
-        if note == ticker:
+        self.notifs.append(notif)
+        self.notifCount += 1
+
+    def clearNotifs(self):
+        for notif in self.notifs:
+            notif.destroy()
+
+        self.notifCount = 0
+
+    def getPrice(self, ticker: str) -> str:
+        url = f"https://finance.yahoo.com/quote/{ticker}/"
+        page = self.session.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
+        proc = BeautifulSoup(page.text, "html.parser")
+        class_ = "My(6px) Pos(r) smartphone_Mt(6px) W(100%)"
+        return proc.find("div", class_ = class_).find("fin-streamer").text
+
+    def getChange(self, ticker: str) -> str:
+        url = f"https://finance.yahoo.com/quote/{ticker}/"
+        page = self.session.get(url, headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
+        proc = BeautifulSoup(page.text, "html.parser")
+        class_ = "My(6px) Pos(r) smartphone_Mt(6px) W(100%)"
+        return proc.find("div", class_ = class_).find("span").text
+
+    def submitAddStock(self):
+        ticker = self.entry.get()
+        self.input.grab_release()
+        self.input.destroy()
+        self.addStock(ticker)
+
+    def addStock(self, ticker: str):
+        if requests.get(f"https://finance.yahoo.com/quote/{ticker}/").status_code == 404:
+            errorWindow = tk.Toplevel(master= self.window)
+            errorWindow.title("Do better.")
+            tk.Label(errorWindow, text = "Invalid Ticker, buddy.", font="Helvetica 15").pack()
+            tk.Button(errorWindow, text = "Okay. I'm really sorry.", command = lambda : errorWindow.destroy()).pack()
             return 0
-    percent = 100*(float(getChange(ticker)) / (float(getPrice(ticker)) - float(getChange(ticker))))
-    if percent > 5:
-        notify(ticker, 1)
-        notifed.append(ticker)
-        return 0
-    if percent < -5:
-        notify(ticker, 0)
-        notifed.append(ticker)
-        return 0
+        
+        self.addstkbutton.grid(column = 0, row = 1 + self.stockCount)
+        newtext = tk.StringVar()
+        newtext.set(f"{ticker} = {self.getPrice(ticker)} ({self.getChange(ticker)})")
+        self.textVars.append(newtext)
+        newlabel = tk.Label(textvariable= self.textVars[self.stockCount], font='Helvetica 15').grid(column = 0, row = self.stockCount)
+        self.labels.append(newlabel)
+        self.stocks.append(ticker)
+        self.stockCount += 1
+        mem = open("memory.txt", 'w')
+        tomp = ""
 
-def refresh():
-    global textvars, stocks, marketClosed
-    if marketClosed == True:
-        wn.after(10000, refresh)
-        return 0
-    counter = 0
-    for text in textvars:
-        text.set(f"{stocks[counter]} = {getPrice(stocks[counter])} ({getChange(stocks[counter])})")
-        print(getPrice(stocks[counter]))
-        counter += 1
-    updateTillClose()
-    for stock in stocks:
-        checkMovement(stock)
-    wn.after(10000, refresh)
+        for stock in self.stocks:
+            tomp += f"{stock} "
 
-addstkbutton = tk.Button(wn, text = "Add Stock", command = addstkclick, font='Helvetica 15')
-addstkbutton.grid(column = 0, row = 1)
-clearNotifButton = tk.Button(wn, text = "Clear Notifications", command = clearNotifs, font = "Helvetica 15")
-clearNotifButton.grid(column = 2, row = 0)
-mem = open("memory.txt", "r")
-decMem = mem.read()
-for stock in decMem.split():
-    addstk(stock)
-wn.after(10000, refresh)
+        self.blah = str.encode(tomp)
+        mem.write(tomp)
 
-wn.mainloop()
+    def addStockClick(self):
+        input = tk.Toplevel(master= self.window)
+        input.grab_current()
+        input.focus_force()
+        entry = tk.Entry(input, bd = 10)
+        entry.pack()
+        self.submit = tk.Button(input, text = "Submit", command = self.submitAddStock).pack()
+
+    def checkMovement(self, ticker: str):
+        if self.marketClosed == True:
+            self.notifedStocks = []
+            return 0
+        
+        for note in self.notifedStocks:
+            if note == ticker:
+                return 0
+            
+        percent = 100*(float(self.getChange(ticker)) / (float(self.getPrice(ticker)) - float(self.getChange(ticker))))
+
+        if percent > 5:
+            self.notify(ticker, 1)
+            self.notifedStocks.append(ticker)
+            return 0
+        
+        if percent < -5:
+            self.notify(ticker, 0)
+            self.notifedStocks.append(ticker)
+            return 0
+
+    def refresh(self):
+        if self.marketClosed == True:
+            self.window.after(10000, self.refresh)
+            return 0
+        
+        counter = 0
+
+        for text in self.textVars:
+            text.set(f"{self.stocks[counter]} = {self.getPrice(self.stocks[counter])} ({self.getChange(self.stocks[counter])})")
+            print(self.getPrice(self.stocks[counter]))
+            counter += 1
+
+        self.updateTillClose()
+
+        for stock in self.stocks:
+            self.checkMovement(stock)
+
+        self.window.after(10000, self.refresh)
+
+    def run(self):
+        self.window = tk.Tk()
+        self.window.title(f"stock thing ({self.tillClose})")
+        self.window.geometry("900x600")
+        self.updateTillClose(self)
+        self.input = tk.Toplevel(master= self.window)
+        self.entry = tk.Entry(input, bd = 10)
+
+        addStockButton = tk.Button(self.window, text = "Add Stock", command = self.addStockClick, font='Helvetica 15')
+        addStockButton.grid(column = 0, row = 1)
+        clearNotifButton = tk.Button(self.window, text = "Clear Notifications", command = self.clearNotifs, font = "Helvetica 15")
+        clearNotifButton.grid(column = 2, row = 0)
+        mem = open("memory.txt", "r")
+        decMem = mem.read()
+
+        for stock in decMem.split():
+            self.addStock(stock)
+
+        self.window.after(10000, self.refresh)
+        self.window.mainloop()
+
+def main():
+    program = Program()
+    program.run()
+    
+
+if __name__ == "__main__":
+    main()
